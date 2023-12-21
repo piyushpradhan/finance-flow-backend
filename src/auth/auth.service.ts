@@ -8,16 +8,9 @@ import { UsersService } from 'src/users/users.service';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import { User } from 'src/schema/user.schema';
 import { validatePassword } from 'src/utils/auth';
-
-export interface TokenResponse {
-  accessToken: string;
-  refreshToken: string;
-}
-
-export interface Token {
-  sub: string;
-  username: string;
-}
+import type { GoogleUser, Token, TokenResponse } from 'src/utils/types';
+import axios from 'axios';
+import { UpdateUserDto } from 'src/users/users.dto';
 
 @Injectable()
 export class AuthService {
@@ -42,7 +35,6 @@ export class AuthService {
   async login(user: User): Promise<TokenResponse> {
     const payload: Token = {
       sub: user.uid,
-      username: user.username,
     };
 
     let refreshToken: string;
@@ -50,28 +42,28 @@ export class AuthService {
     if (process.env.ACCESS_TOKEN_EXPIRATION) {
       refreshToken = await this.jwtService.signAsync(
         payload,
-        this.getRefreshTokenOptions(user),
+        this.getRefreshTokenOptions(),
       );
     }
 
     return {
       accessToken: await this.jwtService.signAsync(
         payload,
-        this.getAccessTokenOptions(user),
+        this.getAccessTokenOptions(),
       ),
       refreshToken,
     };
   }
 
-  getRefreshTokenOptions(user: User): JwtSignOptions {
-    return this.getTokenOptions('refresh', user);
+  getRefreshTokenOptions(): JwtSignOptions {
+    return this.getTokenOptions('refresh');
   }
 
-  getAccessTokenOptions(user: User): JwtSignOptions {
-    return this.getTokenOptions('access', user);
+  getAccessTokenOptions(): JwtSignOptions {
+    return this.getTokenOptions('access');
   }
 
-  private getTokenOptions(type: 'refresh' | 'access', user: User) {
+  getTokenOptions(type: 'refresh' | 'access') {
     const jwtSecret =
       type === 'refresh'
         ? process.env.REFRESH_TOKEN_SECRET
@@ -81,7 +73,7 @@ export class AuthService {
         ? process.env.REFRESH_TOKEN_EXPIRATION
         : process.env.ACCESS_TOKEN_EXPIRATION;
     const options: JwtSignOptions = {
-      secret: `${jwtSecret} ${user.sessionToken}`,
+      secret: `${jwtSecret}`,
     };
 
     if (expiration) {
@@ -89,5 +81,107 @@ export class AuthService {
     }
 
     return options;
+  }
+
+  async isTokenExpired(accessToken: string): Promise<boolean> {
+    try {
+      const response = await axios.get(
+        `https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${accessToken}`,
+      );
+
+      const expiresIn = response.data.expiresIn;
+
+      if (!expiresIn || expiresIn <= 0) {
+        return true;
+      }
+    } catch (err) {
+      return true;
+    }
+  }
+
+  async generateNewAccessToken(refreshToken: string): Promise<string> {
+    try {
+      const response = await axios.post(
+        'https://accounts.google.com/o/oauth2/token',
+        {
+          client_id: process.env.GOOGLE_CLIENT_ID,
+          client_secret: process.env.GOOGLE_CLIENT_SECRET,
+          refresh_token: refreshToken,
+          grant_type: 'refresh_token',
+        },
+      );
+
+      return response.data.access_token;
+    } catch (err) {
+      console.error('Failed to generate a new token: ', err);
+      throw new Error('Failed to refresh the access token');
+    }
+  }
+
+  async getCurrentUserProfile(token: string) {
+    try {
+      return axios.get(
+        `https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=${token}`,
+      );
+    } catch (err) {
+      console.error('Failed to revoke the token:', err);
+    }
+  }
+
+  async getProfile(token: string) {
+    try {
+      const userProfile = await axios.get(
+        `https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=${token}`,
+      );
+
+      const updatedUserProfile: UpdateUserDto = {
+        username: userProfile.data.name,
+        email: userProfile.data.email,
+        displayPicture: userProfile.data.picture,
+        currency: 'USD',
+      };
+
+      return this.userService.update(updatedUserProfile);
+    } catch (error) {
+      console.error('Failed to revoke the token:', error);
+    }
+  }
+
+  async createOrUpdateUser(user: GoogleUser) {
+    try {
+      const username = `${user.firstName}${user.lastName}`;
+      const existingUser = await this.userService.getUser(
+        user.email ?? username,
+      );
+
+      if (existingUser) {
+        const updatedUser = await this.userService.update({
+          username: user.email,
+          email: user.email,
+          displayPicture: user.picture,
+        });
+        return updatedUser;
+      }
+
+      const createdUser = await this.userService.create({
+        username: user.email,
+        email: user.email,
+        displayPicture: user.picture,
+      });
+
+      return createdUser;
+    } catch (err) {
+      console.error('Failed to update user: ', err);
+    }
+  }
+
+  async revokeGoogleToken(token: string) {
+    try {
+      await axios.get(
+        `https://accounts.google.com/o/oauth2/revoke?token=${token}`,
+      );
+    } catch (err) {
+      console.error('Failed to revoke the token: ', err);
+    }
   }
 }

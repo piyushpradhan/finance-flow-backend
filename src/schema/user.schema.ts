@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, { Document, HydratedDocument } from 'mongoose';
+import mongoose, { HydratedDocument } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { Account } from './account.schema';
 
@@ -13,7 +13,7 @@ export class User {
   displayPicture?: string;
   @Prop({ required: true })
   username: string;
-  @Prop({ required: true })
+  @Prop({ required: true, unique: true })
   email: string;
   @Prop({ required: true })
   currency: string;
@@ -32,10 +32,6 @@ export class User {
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
-
-function validatePassword(password: string): Promise<boolean> {
-  return bcrypt.compare(password, this.password || '');
-}
 
 UserSchema.pre('save', async function (next) {
   const user: User = this as any;
