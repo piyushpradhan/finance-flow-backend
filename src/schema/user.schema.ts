@@ -2,6 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { Account } from './account.schema';
+import { Category } from './category.schema';
 
 export type UserDocument = HydratedDocument<User>;
 
@@ -29,6 +30,8 @@ export class User {
   appleId: string;
   @Prop()
   password: string;
+  @Prop({ default: [], type: mongoose.Schema.Types.ObjectId, ref: 'Category' })
+  categories: Category[];
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
@@ -49,4 +52,25 @@ UserSchema.pre('save', async function (next) {
   } catch (err) {
     next(err);
   }
+});
+
+UserSchema.post(['find', 'findOne', 'findOneAndUpdate'], function (res) {
+  if (!this._mongooseOptions.lean) {
+    return;
+  }
+
+  function transformDoc(doc) {
+    if (doc) {
+      doc.uid = doc._id;
+      delete doc._id;
+      delete doc.__v;
+      return doc;
+    }
+  }
+
+  if (Array.isArray(res)) {
+    return res.map(transformDoc);
+  }
+
+  return transformDoc(res);
 });

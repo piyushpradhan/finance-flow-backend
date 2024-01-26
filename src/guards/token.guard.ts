@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { AuthService } from 'src/auth/auth.service';
+import { Request } from 'express';
 
 @Injectable()
 export class CheckTokenExpiryGuard implements CanActivate {
@@ -12,7 +13,8 @@ export class CheckTokenExpiryGuard implements CanActivate {
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
     const request = ctx.switchToHttp().getRequest();
-    const accessToken = request.cookies['access_token'];
+    const accessToken =
+      request.cookies['access_token'] ?? this.extractTokenFromHeader(request);
 
     if (await this.authService.isTokenExpired(accessToken)) {
       const refreshToken = request.cookies['refresh_token'];
@@ -37,5 +39,11 @@ export class CheckTokenExpiryGuard implements CanActivate {
     }
 
     return true;
+  }
+
+  private extractTokenFromHeader(request: Request): string | undefined {
+    const [type, token] = request.headers.authorization?.split(' ') ?? [];
+    const accessToken = type === 'Bearer' ? token : undefined;
+    return accessToken;
   }
 }

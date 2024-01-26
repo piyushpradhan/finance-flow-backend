@@ -26,9 +26,18 @@ export class AuthController {
   ) {}
 
   @Post('login')
-  async login(@Body() body: LoginDto) {
+  async login(@Body() body: LoginDto, @Res() res: Response) {
     const user = await this.authService.validate(body.username, body.password);
-    return this.authService.login(user);
+
+    if (!user) {
+      throw new BadRequestException('Invalid credentials');
+    }
+
+    const authenticatedUser = await this.authService.login(user);
+    return res.json({
+      data: authenticatedUser,
+      message: 'Login successful',
+    });
   }
 
   @Post('register')
@@ -74,7 +83,7 @@ export class AuthController {
     }
   }
 
-  @Get('profile')
+  @Get('google/profile')
   @UseGuards(CheckTokenExpiryGuard)
   async getProfile(@Request() req) {
     const accessToken = req.cookies['access_token'];

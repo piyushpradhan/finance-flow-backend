@@ -1,29 +1,22 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, { Date, HydratedDocument } from 'mongoose';
-import { User } from './user.schema';
-import { Account } from './account.schema';
-import { Category } from './category.schema';
+import { HydratedDocument } from 'mongoose';
 
 export type TransactionDocument = HydratedDocument<Transaction>;
 
 @Schema()
 export class Transaction {
   @Prop({ required: true })
-  timestamp: Date;
+  id: string;
+  @Prop({ required: true })
+  timestamp: string;
   @Prop({ required: true })
   amount: number;
-  @Prop({
-    required: true,
-    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  })
-  user: User;
-  @Prop({
-    required: true,
-    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Account' }],
-  })
-  account: Account;
-  @Prop({ type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Category' }] })
-  category: Category;
+  @Prop({ required: true })
+  user: string;
+  @Prop({ required: true })
+  account: string;
+  @Prop({ required: true })
+  category: string;
   @Prop()
   note: string;
   @Prop({ required: true })
@@ -31,3 +24,26 @@ export class Transaction {
 }
 
 export const TransactionSchema = SchemaFactory.createForClass(Transaction);
+
+TransactionSchema.post(
+  ['find', 'findOne', 'findOneAndUpdate', 'findOneAndDelete'],
+  function (res) {
+    if (!this._mongooseOptions.lean) {
+      return;
+    }
+
+    function transformDoc(doc) {
+      if (doc) {
+        delete doc._id;
+        delete doc.__v;
+        return doc;
+      }
+    }
+
+    if (Array.isArray(res)) {
+      return res.map(transformDoc);
+    }
+
+    return transformDoc(res);
+  },
+);

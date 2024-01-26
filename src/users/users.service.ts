@@ -3,6 +3,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
+import { v4 as uuidv4 } from 'uuid';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User } from 'src/schema/user.schema';
@@ -15,16 +16,14 @@ export class UsersService {
   async create(createUserDto: CreateUserDto): Promise<User> {
     const user = new this.userModel({
       ...createUserDto,
+      uid: uuidv4(),
       currency: 'INR',
       username: createUserDto.email,
     });
 
     try {
       const createdUser = await user.save();
-      return {
-        uid: `${createdUser._id}`,
-        ...createdUser,
-      };
+      return createdUser;
     } catch (err) {
       throw new InternalServerErrorException(err);
     }
@@ -33,9 +32,11 @@ export class UsersService {
   async update(updateUserDto: UpdateUserDto): Promise<User> {
     const user = new this.userModel(updateUserDto);
     try {
-      const updatedUser = await this.userModel.findOneAndUpdate({
-        email: user.email,
-      });
+      const updatedUser = await this.userModel
+        .findOneAndUpdate({
+          email: user.email,
+        })
+        .lean();
 
       if (!updatedUser) {
         const createdUser = new this.userModel(updateUserDto);
@@ -50,32 +51,32 @@ export class UsersService {
   }
 
   async getAllUsers(): Promise<User[]> {
-    return this.userModel.find().exec();
+    return this.userModel.find().lean();
   }
 
   async findOne(id: string): Promise<User> {
-    return this.userModel.findOne((user: User) => user.uid === id);
+    return this.userModel.findOne((user: User) => user.uid === id).lean();
   }
 
   async getUserByName(name: string): Promise<User> {
     const username = { $regex: new RegExp(`^${name}$`, 'i') };
-    return this.userModel.findOne({ username });
+    return this.userModel.findOne({ username }).lean();
   }
 
   async getUserByEmail(email: string): Promise<User> {
     const userEmail = { $regex: new RegExp(`^${email}$`, 'i') };
-    return this.userModel.findOne({ email: userEmail });
+    return this.userModel.findOne({ email: userEmail }).lean();
   }
 
   async getUserById(id: string): Promise<User> {
-    return this.userModel.findById(id);
+    return this.userModel.findById(id).lean();
   }
 
   async getUser(target: string) {
-    const getUserByName = await this.getUserByName(target);
-    const getUserByEmail = await this.getUserByEmail(target);
+    const userByName = await this.getUserByName(target);
+    const userByEmail = await this.getUserByEmail(target);
 
-    return getUserByName ?? getUserByEmail;
+    return userByName ?? userByEmail;
   }
 
   async validateUserById(id: string) {

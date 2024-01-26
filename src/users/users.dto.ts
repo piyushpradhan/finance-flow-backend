@@ -6,7 +6,7 @@ export const createUserSchema = z
     email: z.string().email(),
     displayPicture: z.string().optional(),
     // TODO: Add a union of all currencies or something
-    currency: z.string(),
+    currency: z.string().optional(),
   })
   .required();
 

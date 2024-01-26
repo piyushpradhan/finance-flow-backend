@@ -1,19 +1,53 @@
 import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, { HydratedDocument } from 'mongoose';
-import { Transaction } from './transaction.schema';
+import { HydratedDocument } from 'mongoose';
 
 export type CategoryDocument = HydratedDocument<Category>;
 
 @Schema()
 export class Category {
-  @Prop({ required: true })
+  @Prop({ required: true, unique: true })
   name: string;
   @Prop()
   icon: string;
-  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Transaction' })
-  transactions: Transaction[];
-  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Category' })
-  subCategories: Category[];
+  @Prop({ required: true })
+  transactions: string[];
+  @Prop()
+  subCategories: string[];
+  @Prop({ required: true })
+  uid: string;
+  @Prop({ required: true, default: false })
+  isSubcategory: false;
 }
 
 export const CategorySchema = SchemaFactory.createForClass(Category);
+
+CategorySchema.post(
+  [
+    'find',
+    'findOne',
+    'findOneAndUpdate',
+    'findOneAndDelete',
+    'deleteOne',
+    'updateMany',
+  ],
+  function (res) {
+    if (!this._mongooseOptions.lean) {
+      return;
+    }
+
+    function transformDoc(doc) {
+      if (doc) {
+        doc.id = doc._id;
+        delete doc._id;
+        delete doc.__v;
+        return doc;
+      }
+    }
+
+    if (Array.isArray(res)) {
+      return res.map(transformDoc);
+    }
+
+    return transformDoc;
+  },
+);

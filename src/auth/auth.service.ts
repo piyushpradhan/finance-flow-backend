@@ -19,7 +19,7 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async validate(username: string, password: string) {
+  async validate(username: string, password: string): Promise<User> {
     const user = await this.userService.getUser(username);
 
     if (
@@ -47,6 +47,7 @@ export class AuthService {
     }
 
     return {
+      ...user,
       accessToken: await this.jwtService.signAsync(
         payload,
         this.getAccessTokenOptions(),
@@ -83,19 +84,30 @@ export class AuthService {
     return options;
   }
 
+  // async isTokenExpired(accessToken: string): Promise<boolean> {
+  //   try {
+  //     const response = await axios.get(
+  //       `https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${accessToken}`,
+  //     );
+  //
+  //     const expiresIn = response.data.expiresIn;
+  //
+  //     if (!expiresIn || expiresIn <= 0) {
+  //       return true;
+  //     }
+  //   } catch (err) {
+  //     return true;
+  //   }
+  // }
+
   async isTokenExpired(accessToken: string): Promise<boolean> {
     try {
-      const response = await axios.get(
-        `https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${accessToken}`,
-      );
-
-      const expiresIn = response.data.expiresIn;
-
-      if (!expiresIn || expiresIn <= 0) {
-        return true;
-      }
+      const { exp } = await this.jwtService.decode(accessToken);
+      const now = Date.now() / 1000;
+      return now < exp;
     } catch (err) {
-      return true;
+      console.error("Couldn't decode the access token: ", err);
+      throw new UnauthorizedException('Token expired');
     }
   }
 
@@ -138,7 +150,7 @@ export class AuthService {
         username: userProfile.data.name,
         email: userProfile.data.email,
         displayPicture: userProfile.data.picture,
-        currency: 'USD',
+        currency: 'INR',
       };
 
       return this.userService.update(updatedUserProfile);

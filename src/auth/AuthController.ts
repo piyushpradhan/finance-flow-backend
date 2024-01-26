@@ -6,26 +6,25 @@ import {
   Get,
   Post,
   Request,
-  Res
+  Res,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { UsersService } from 'src/users/users.service';
 import { Public } from 'src/decorators/public.decorator';
 import { Response } from 'express';
 
-
 @Controller('auth')
 export class AuthController {
   constructor(
     private authService: AuthService,
-    private userService: UsersService
-  ) { }
+    private userService: UsersService,
+  ) {}
 
   @Public()
   @Post('login')
   async login(@Body() body: LoginDto) {
     return this.authService.login(
-      await this.authService.validate(body.username, body.password)
+      await this.authService.validate(body.username, body.password),
     );
   }
 
@@ -47,7 +46,7 @@ export class AuthController {
 
   @Public()
   @Get('google')
-  googleLogin() { }
+  googleLogin() {}
 
   @Public()
   @Get('google/callback')
@@ -59,7 +58,6 @@ export class AuthController {
     res.cookie('refresh_token', googleRefreshToken, { httpOnly: true });
 
     // TODO: Change this later
-    res.redirect('http://localhost:3000/users');
+    // res.redirect('http://localhost:3000/users');
   }
 }
-
