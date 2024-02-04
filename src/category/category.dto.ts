@@ -8,6 +8,7 @@ export const createCategorySchema = z.object({
   subCategories: z.array(z.string()).default([]).optional(),
   uid: z.string(),
   isSubcategory: z.boolean().optional().default(false),
+  type: z.enum(['income', 'expense']),
 });
 
 export type CreateCategoryDto = z.infer<typeof createCategorySchema>;
@@ -20,12 +21,13 @@ export const updateCategorySchema = z.object({
   subCategories: z.array(z.string()).optional(),
   uid: z.string(),
   isSubcategory: z.boolean().optional(),
+  type: z.enum(['income', 'expense']).optional(),
 });
 
 export type UpdateCategoryDto = z.infer<typeof updateCategorySchema>;
 
 export const deleteCategorySchema = z.object({
-  categoryName: z.string(),
+  id: z.string(),
   uid: z.string(),
 });
 

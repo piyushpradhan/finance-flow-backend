@@ -1,6 +1,6 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import mongoose, { Model, mongo } from 'mongoose';
+import { Model } from 'mongoose';
 import { Category } from 'src/schema/category.schema';
 import {
   CreateCategoryDto,
@@ -10,7 +10,6 @@ import {
   UpdateCategoryDto,
 } from './category.dto';
 import { User } from 'src/schema/user.schema';
-import { randomUUID } from 'crypto';
 
 @Injectable()
 export class CategoryService {
@@ -30,9 +29,16 @@ export class CategoryService {
 
       const categories = await this.categoryModel
         .find({
-          _id: {
-            $in: categoryIds,
-          },
+          $or: [
+            {
+              _id: {
+                $in: categoryIds,
+              },
+            },
+            {
+              uid: user.uid,
+            },
+          ],
         })
         .lean();
 
@@ -64,26 +70,33 @@ export class CategoryService {
   }
 
   async create(newCategory: CreateCategoryDto): Promise<Category> {
-    const category = new this.categoryModel({
-      ...newCategory,
-      transactions: newCategory.transactions ?? [],
-      subCategories: newCategory.subCategories ?? [],
-      isSubcategory: newCategory.isSubcategory ?? false,
-    });
-
     try {
+      let subCategories = [];
+      // Create the sub-categories
       if (newCategory.subCategories && newCategory.subCategories.length !== 0) {
         const subCategoryDocuments = newCategory.subCategories.map((item) => ({
-          id: randomUUID(),
           name: item,
           transactions: [],
           subCategories: [],
           uid: newCategory.uid,
           isSubcategory: true,
+          type: newCategory.type,
         }));
 
-        await this.categoryModel.insertMany(subCategoryDocuments);
+        subCategories =
+          await this.categoryModel.insertMany(subCategoryDocuments);
       }
+
+      // Create the parent category and add sub-category IDs
+      const category = new this.categoryModel({
+        ...newCategory,
+        transactions: newCategory.transactions ?? [],
+        subCategories:
+          subCategories.map((subCategory) => subCategory._id) ?? [],
+        isSubcategory: newCategory.isSubcategory ?? false,
+      });
+
+      // Save the newly created parent category
       const createdCategory = await category.save();
 
       // Add newly created categories to userdata
@@ -92,6 +105,7 @@ export class CategoryService {
           categories: createdCategory._id,
         },
       });
+
       return createdCategory;
     } catch (err) {
       console.error('Failed to create a category: ', err);
@@ -111,6 +125,33 @@ export class CategoryService {
           { new: true },
         )
         .lean();
+
+      // Update the user's categories if the updated category is not a subcategory
+      if (!category.isSubcategory) {
+        const userCategories = await this.categoryModel
+          .find({
+            uid: updatedCategory.uid,
+          })
+          .lean();
+
+        console.log({ userCategories });
+
+        const categoryNames = userCategories.map((category) => category.name);
+
+        console.log({ categoryNames });
+
+        await this.userModel.findOneAndUpdate(
+          {
+            uid: updatedCategory.uid,
+          },
+          {
+            $set: {
+              categories: categoryNames,
+            },
+          },
+        );
+      }
+
       return category;
     } catch (err) {
       console.error(err);
@@ -120,25 +161,21 @@ export class CategoryService {
 
   async delete(deleteCategory: DeleteCategoryDto): Promise<Category[]> {
     try {
-      console.log({ deleteCategory });
       const categoryToBeDeleted = await this.categoryModel
-        .findOneAndDelete({
-          name: deleteCategory.categoryName,
-          uid: deleteCategory.uid,
+        .findByIdAndDelete({
+          _id: deleteCategory.id,
         })
         .lean();
 
-      console.log(categoryToBeDeleted);
-
       // Update user data if the deleted category is a parent category
-      if (!categoryToBeDeleted.isSubcategory) {
+      if (!categoryToBeDeleted?.isSubcategory) {
         await this.userModel.findOneAndUpdate(
           {
-            uid: deleteCategory.uid,
+            _id: deleteCategory.id,
           },
           {
             $pop: {
-              categories: categoryToBeDeleted._id,
+              categories: categoryToBeDeleted.name,
             },
           },
         );
