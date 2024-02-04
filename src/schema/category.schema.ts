@@ -17,6 +17,8 @@ export class Category {
   uid: string;
   @Prop({ required: true, default: false })
   isSubcategory: false;
+  @Prop({ required: true })
+  type: 'income' | 'expense';
 }
 
 export const CategorySchema = SchemaFactory.createForClass(Category);

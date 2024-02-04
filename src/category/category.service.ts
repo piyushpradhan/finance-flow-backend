@@ -29,9 +29,16 @@ export class CategoryService {
 
       const categories = await this.categoryModel
         .find({
-          _id: {
-            $in: categoryIds,
-          },
+          $or: [
+            {
+              _id: {
+                $in: categoryIds,
+              },
+            },
+            {
+              uid: user.uid,
+            },
+          ],
         })
         .lean();
 
@@ -63,14 +70,9 @@ export class CategoryService {
   }
 
   async create(newCategory: CreateCategoryDto): Promise<Category> {
-    const category = new this.categoryModel({
-      ...newCategory,
-      transactions: newCategory.transactions ?? [],
-      subCategories: newCategory.subCategories ?? [],
-      isSubcategory: newCategory.isSubcategory ?? false,
-    });
-
     try {
+      let subCategories = [];
+      // Create the sub-categories
       if (newCategory.subCategories && newCategory.subCategories.length !== 0) {
         const subCategoryDocuments = newCategory.subCategories.map((item) => ({
           name: item,
@@ -78,10 +80,23 @@ export class CategoryService {
           subCategories: [],
           uid: newCategory.uid,
           isSubcategory: true,
+          type: newCategory.type,
         }));
 
-        await this.categoryModel.insertMany(subCategoryDocuments);
+        subCategories =
+          await this.categoryModel.insertMany(subCategoryDocuments);
       }
+
+      // Create the parent category and add sub-category IDs
+      const category = new this.categoryModel({
+        ...newCategory,
+        transactions: newCategory.transactions ?? [],
+        subCategories:
+          subCategories.map((subCategory) => subCategory._id) ?? [],
+        isSubcategory: newCategory.isSubcategory ?? false,
+      });
+
+      // Save the newly created parent category
       const createdCategory = await category.save();
 
       // Add newly created categories to userdata
@@ -119,7 +134,11 @@ export class CategoryService {
           })
           .lean();
 
+        console.log({ userCategories });
+
         const categoryNames = userCategories.map((category) => category.name);
+
+        console.log({ categoryNames });
 
         await this.userModel.findOneAndUpdate(
           {
