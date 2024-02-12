@@ -34,7 +34,7 @@ export const deleteCategorySchema = z.object({
 export type DeleteCategoryDto = z.infer<typeof deleteCategorySchema>;
 
 export const getAllCategoriesSchema = z.object({
-  uid: z.string(),
+  uid: z.string({ required_error: 'Please provide a UID' }),
 });
 
 export type GetAllCategoriesDto = z.infer<typeof getAllCategoriesSchema>;

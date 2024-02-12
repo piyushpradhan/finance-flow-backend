@@ -111,19 +111,21 @@ export class AuthService {
     }
   }
 
-  async generateNewAccessToken(refreshToken: string): Promise<string> {
+  generateNewAccessToken(refreshToken: string): string {
     try {
-      const response = await axios.post(
-        'https://accounts.google.com/o/oauth2/token',
-        {
-          client_id: process.env.GOOGLE_CLIENT_ID,
-          client_secret: process.env.GOOGLE_CLIENT_SECRET,
-          refresh_token: refreshToken,
-          grant_type: 'refresh_token',
-        },
-      );
-
-      return response.data.access_token;
+      const newAccessToken = this.jwtService.sign(refreshToken);
+      return newAccessToken;
+      // const response = await axios.post(
+      //   'https://accounts.google.com/o/oauth2/token',
+      //   {
+      //     client_id: process.env.GOOGLE_CLIENT_ID,
+      //     client_secret: process.env.GOOGLE_CLIENT_SECRET,
+      //     refresh_token: refreshToken,
+      //     grant_type: 'refresh_token',
+      //   },
+      // );
+      //
+      // return response.data.access_token;
     } catch (err) {
       console.error('Failed to generate a new token: ', err);
       throw new Error('Failed to refresh the access token');

@@ -5,6 +5,7 @@ import {
   UseGuards,
   Get,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { CheckTokenExpiryGuard } from 'src/guards/token.guard';
 import { Category } from 'src/schema/category.schema';
@@ -14,11 +15,13 @@ import { CategoryService } from './category.service';
 export class CategoryController {
   constructor(private readonly categoryService: CategoryService) {}
 
-  @Post('/all')
+  @Get('/all')
   @UseGuards(CheckTokenExpiryGuard)
-  async getAllCategories(@Request() request): Promise<Category[]> {
-    // { uid: <userId> }
-    const payload = request.body;
+  async getAllCategories(@Query('uid') uid: string): Promise<Category[]> {
+    console.log('uid', uid);
+    const payload = {
+      uid,
+    };
     return await this.categoryService.getAllCategories(payload);
   }
 

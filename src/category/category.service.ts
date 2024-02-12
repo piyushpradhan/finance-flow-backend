@@ -22,10 +22,13 @@ export class CategoryService {
     getAllCategoriesDto: GetAllCategoriesDto,
   ): Promise<Category[]> {
     try {
+      console.log('RECEIVED PAYLOAD: ', { getAllCategoriesDto });
       const user = await this.userModel
         .findById(getAllCategoriesDto.uid)
         .lean();
       const categoryIds = user.categories ?? [];
+
+      console.log('FOUND USER: ', { user });
 
       const categories = await this.categoryModel
         .find({
@@ -41,6 +44,8 @@ export class CategoryService {
           ],
         })
         .lean();
+
+      console.log('FOUND CATEGORIES: ', { categories });
 
       return categories;
     } catch (err) {
@@ -115,6 +120,7 @@ export class CategoryService {
 
   async update(updatedCategory: UpdateCategoryDto): Promise<Category> {
     try {
+      console.log({ updatedCategory });
       const category = await this.categoryModel
         .findOneAndUpdate(
           {
@@ -134,11 +140,7 @@ export class CategoryService {
           })
           .lean();
 
-        console.log({ userCategories });
-
-        const categoryNames = userCategories.map((category) => category.name);
-
-        console.log({ categoryNames });
+        const categories = userCategories.map((category) => category._id);
 
         await this.userModel.findOneAndUpdate(
           {
@@ -146,7 +148,7 @@ export class CategoryService {
           },
           {
             $set: {
-              categories: categoryNames,
+              categories,
             },
           },
         );
