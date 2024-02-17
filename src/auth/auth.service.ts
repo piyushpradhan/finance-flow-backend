@@ -111,9 +111,12 @@ export class AuthService {
     }
   }
 
-  generateNewAccessToken(refreshToken: string): string {
+  async generateNewAccessToken(uid: string): Promise<string> {
     try {
-      const newAccessToken = this.jwtService.sign(refreshToken);
+      const newAccessToken = await this.jwtService.signAsync(
+        uid,
+        this.getAccessTokenOptions(),
+      );
       return newAccessToken;
       // const response = await axios.post(
       //   'https://accounts.google.com/o/oauth2/token',
