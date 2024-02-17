@@ -22,7 +22,6 @@ export class CategoryService {
     getAllCategoriesDto: GetAllCategoriesDto,
   ): Promise<Category[]> {
     try {
-      console.log('RECEIVED PAYLOAD: ', { getAllCategoriesDto });
       const user = await this.userModel
         .findById(getAllCategoriesDto.uid)
         .lean();
