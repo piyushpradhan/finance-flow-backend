@@ -15,6 +15,7 @@ export class CheckTokenExpiryGuard implements CanActivate {
     const request = ctx.switchToHttp().getRequest();
     const accessToken =
       request.cookies['access_token'] ?? this.extractTokenFromHeader(request);
+    const uid = request.params['uid'] ?? '';
 
     if (await this.authService.isTokenExpired(accessToken)) {
       const refreshToken = request.cookies['refresh_token'];
@@ -27,7 +28,7 @@ export class CheckTokenExpiryGuard implements CanActivate {
 
       try {
         const newAccessToken =
-          this.authService.generateNewAccessToken(refreshToken);
+          await this.authService.generateNewAccessToken(uid);
         request.res.cookie('access_token', newAccessToken, {
           httpOnly: true,
         });
