@@ -18,7 +18,6 @@ export class CategoryController {
   @Get('/all')
   @UseGuards(CheckTokenExpiryGuard)
   async getAllCategories(@Query('uid') uid: string): Promise<Category[]> {
-    console.log('uid', uid);
     const payload = {
       uid,
     };

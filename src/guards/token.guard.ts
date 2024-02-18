@@ -16,27 +16,8 @@ export class CheckTokenExpiryGuard implements CanActivate {
     const accessToken =
       request.cookies['access_token'] ?? this.extractTokenFromHeader(request);
 
-    if (await this.authService.isTokenExpired(accessToken)) {
-      const refreshToken = request.cookies['refresh_token'];
-
-      if (!refreshToken) {
-        throw new UnauthorizedException(
-          'User is unauthorized: refresh token not found',
-        );
-      }
-
-      try {
-        const newAccessToken =
-          this.authService.generateNewAccessToken(refreshToken);
-        request.res.cookie('access_token', newAccessToken, {
-          httpOnly: true,
-        });
-        request.cookies['access_token'] = newAccessToken;
-      } catch (err) {
-        console.error(err);
-        throw new UnauthorizedException('unauthorized access');
-      }
-    }
+    const decoded = await this.authService.verifyAccessToken(accessToken);
+    request['user'] = decoded;
 
     return true;
   }

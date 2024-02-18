@@ -84,21 +84,17 @@ export class AuthService {
     return options;
   }
 
-  // async isTokenExpired(accessToken: string): Promise<boolean> {
-  //   try {
-  //     const response = await axios.get(
-  //       `https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${accessToken}`,
-  //     );
-  //
-  //     const expiresIn = response.data.expiresIn;
-  //
-  //     if (!expiresIn || expiresIn <= 0) {
-  //       return true;
-  //     }
-  //   } catch (err) {
-  //     return true;
-  //   }
-  // }
+  async verifyAccessToken(accessToken: string) {
+    const options = this.getAccessTokenOptions();
+    try {
+      const decoded = await this.jwtService.verifyAsync(accessToken, options);
+
+      return decoded;
+    } catch (error) {
+      console.error(error);
+      throw new UnauthorizedException('Access token is invalid');
+    }
+  }
 
   async isTokenExpired(accessToken: string): Promise<boolean> {
     try {
@@ -111,21 +107,13 @@ export class AuthService {
     }
   }
 
-  generateNewAccessToken(refreshToken: string): string {
+  async generateNewAccessToken(uid: string): Promise<string> {
     try {
-      const newAccessToken = this.jwtService.sign(refreshToken);
+      const newAccessToken = await this.jwtService.signAsync(
+        { sub: uid },
+        this.getAccessTokenOptions(),
+      );
       return newAccessToken;
-      // const response = await axios.post(
-      //   'https://accounts.google.com/o/oauth2/token',
-      //   {
-      //     client_id: process.env.GOOGLE_CLIENT_ID,
-      //     client_secret: process.env.GOOGLE_CLIENT_SECRET,
-      //     refresh_token: refreshToken,
-      //     grant_type: 'refresh_token',
-      //   },
-      // );
-      //
-      // return response.data.access_token;
     } catch (err) {
       console.error('Failed to generate a new token: ', err);
       throw new Error('Failed to refresh the access token');
