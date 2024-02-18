@@ -22,13 +22,10 @@ export class CategoryService {
     getAllCategoriesDto: GetAllCategoriesDto,
   ): Promise<Category[]> {
     try {
-      console.log('RECEIVED PAYLOAD: ', { getAllCategoriesDto });
       const user = await this.userModel
         .findById(getAllCategoriesDto.uid)
         .lean();
       const categoryIds = user.categories ?? [];
-
-      console.log('FOUND USER: ', { user });
 
       const categories = await this.categoryModel
         .find({
@@ -44,8 +41,6 @@ export class CategoryService {
           ],
         })
         .lean();
-
-      console.log('FOUND CATEGORIES: ', { categories });
 
       return categories;
     } catch (err) {
@@ -103,6 +98,8 @@ export class CategoryService {
 
       // Save the newly created parent category
       const createdCategory = await category.save();
+
+      console.log({ createdCategory });
 
       // Add newly created categories to userdata
       await this.userModel.findByIdAndUpdate(newCategory.uid, {
